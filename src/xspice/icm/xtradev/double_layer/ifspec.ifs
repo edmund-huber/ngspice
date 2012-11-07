@@ -1,0 +1,31 @@
+
+NAME_TABLE:
+
+Spice_Model_Name:      double_layer
+C_Function_Name:       cm_double_layer
+Description:           "Double layer -- imperfect capacitor"
+
+
+PORT_TABLE:
+
+Port_Name:             cap
+Description:           "terminals"
+Direction:             inout
+Default_Type:          hd
+Allowed_Types:         [hd]
+Vector:                no
+Vector_Bounds:         -
+Null_Allowed:          no
+
+
+PARAMETER_TABLE:
+                                                        
+Parameter_Name:        q0     n
+Description:           "q0"   "n"
+Data_Type:             real   real
+Default_Value:         0.0    0.0
+Limits:                -      -
+Vector:                no     no
+Vector_Bounds:         -      -
+Null_Allowed:          no     no
+

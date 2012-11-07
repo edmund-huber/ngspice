@@ -1,0 +1,8 @@
+asdasd
+v1 1 0 ac 1v
+r1 1 2 10k
+*r2 2 0 10k
+*c1 2 0 10e-5
+a1 2 0 a_double_layer
+.model a_double_layer double_layer (q0 = 1e-4 n = 0)
+.end
