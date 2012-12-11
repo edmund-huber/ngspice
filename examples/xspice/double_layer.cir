@@ -1,8 +1,11 @@
 asdasd
-v1 1 0 ac 1v
-r1 1 2 10k
-*r2 2 0 10k
-*c1 2 0 10e-5
+ * v1 1 0 ac 1v
+v1 1 0 sin(0 1 10hz)
+r1 1 2 1e4
+ * r2 2 0 1e4
+ * c1 2 0 1e-2
 a1 2 0 a_double_layer
 .model a_double_layer double_layer (q0 = 1e-4 n = 0)
+.tran 0.1ms 1s
+ * .ac dec 100 10 1e8
 .end

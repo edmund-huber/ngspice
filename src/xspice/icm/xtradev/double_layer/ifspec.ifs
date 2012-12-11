@@ -8,7 +8,7 @@ Description:           "Double layer -- imperfect capacitor"
 
 PORT_TABLE:
 
-Port_Name:             cap
+Port_Name:             terminal
 Description:           "terminals"
 Direction:             inout
 Default_Type:          hd
