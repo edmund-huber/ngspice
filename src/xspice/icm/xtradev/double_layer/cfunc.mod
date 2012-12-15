@@ -4,6 +4,8 @@
 #include <string.h>
 
 #define INPUT_SAMPLES 64
+
+// Code model memory.
 #define INP 0
 #define IMPULSE 1
 
@@ -57,45 +59,48 @@ plot_t *new_plot(char *p_name) {
   return p;
 }
 
-void end_plot(plot_t *p) {
-  printf("\"%s\", %i points, x_{min,max} = (%.3e, %.3e), y_{min,max} = (%.3e, %.3e)\n", p->name, p->n_values, p->x_min, p->x_max, p->y_min, p->y_max);
-  const int rows = 16, cols = 64;
-  int r, c;
-  for (r = rows; r > 0; r--) {
+void end_plot(plot_t *p, int do_draw) {
 
-    double row_min = p->y_min + ((p->y_max - p->y_min) * ((r - 1) / (double)rows));
-    double row_max = p->y_min + ((p->y_max - p->y_min) * (r / (double)rows));
-    printf("%s%.3e, %s%.3e | ",
-      row_min < 0 ? "" : " ", row_min,
-      row_max < 0 ? "" : " ", row_max);
+  if (do_draw) {
+    printf("\"%s\", %i points, x_{min,max} = (%.3e, %.3e), y_{min,max} = (%.3e, %.3e)\n", p->name, p->n_values, p->x_min, p->x_max, p->y_min, p->y_max);
+    const int rows = 16, cols = 64;
+    int r, c;
+    for (r = rows; r > 0; r--) {
 
-    for (c = 0; c < cols; c++) {
-      double col_min = p->x_min + ((p->x_max - p->x_min) * (c / (double)cols));
-      double col_max = p->x_min + ((p->x_max - p->x_min) * ((c + 1) / (double)cols));
+      double row_min = p->y_min + ((p->y_max - p->y_min) * ((r - 1) / (double)rows));
+      double row_max = p->y_min + ((p->y_max - p->y_min) * (r / (double)rows));
+      printf("%s%.3e, %s%.3e | ",
+        row_min < 0 ? "" : " ", row_min,
+        row_max < 0 ? "" : " ", row_max);
 
-      int cell = 0, i;
-      for (i = 0, cell = 0; i < p->n_values; i++) {
-        if ((row_min <= p->p_values[i].y) && (p->p_values[i].y <= row_max)
-         && (col_min <= p->p_values[i].x) && (p->p_values[i].x <= col_max)) {
-          cell++;
+      for (c = 0; c < cols; c++) {
+        double col_min = p->x_min + ((p->x_max - p->x_min) * (c / (double)cols));
+        double col_max = p->x_min + ((p->x_max - p->x_min) * ((c + 1) / (double)cols));
+
+        int cell = 0, i;
+        for (i = 0, cell = 0; i < p->n_values; i++) {
+          if ((row_min <= p->p_values[i].y) && (p->p_values[i].y <= row_max)
+           && (col_min <= p->p_values[i].x) && (p->p_values[i].x <= col_max)) {
+            cell++;
+          }
+        }
+
+        if (cell == 0) {
+          putchar(' ');
+        } else if (cell == 1) {
+          putchar('.');
+        } else if (cell > 9) {
+          putchar('*');
+        } else {
+          printf("%i", cell);
         }
       }
 
-      if (cell == 0) {
-        putchar(' ');
-      } else if (cell == 1) {
-        putchar('.');
-      } else if (cell > 9) {
-        putchar('*');
-      } else {
-        printf("%i", cell);
-      }
+      puts("");
+
+      // It's a line.
+      if (p->y_min == p->y_max) break;
     }
-
-    puts("");
-
-    // It's a line.
-    if (p->y_min == p->y_max) break;
   }
 
   // Clean up.
@@ -121,49 +126,73 @@ void cm_double_layer(ARGS) {
 
       // Generate the ideal gain, phase response for a CPE.
       assert(INPUT_SAMPLES % 2 == 0);
-      double *cpe_gain = malloc(sizeof(double) * (INPUT_SAMPLES / 2));
-      double *cpe_phase = malloc(sizeof(double) * (INPUT_SAMPLES / 2));
       plot_t *plot_f = new_plot("f");
-      plot_t *plot_gain = new_plot("gain");
-      plot_t *plot_phase = new_plot("phase");
-      int k = 0;
-      #define FREQ_FOR_SAMPLE(k) (1 + (k * 100.0)) / INPUT_SAMPLES
-      for (; k < INPUT_SAMPLES / 2; k++) {
+      double *mag = malloc(sizeof(double) * INPUT_SAMPLES);
+      double *pha = malloc(sizeof(double) * INPUT_SAMPLES);
+      int k;
+      #define FREQ_FOR_SAMPLE(k) (k * 100.0 / INPUT_SAMPLES)
+      for (k = 0; k <= INPUT_SAMPLES / 2; k++) {
         // Z_cpe = k1 e^(k2 j)
         double f = FREQ_FOR_SAMPLE(k);
 	add_to_plot(plot_f, k, f);
         double k1 = 1.0 / (PARAM(q0) * pow(f * M_PI / 180.0, PARAM(n)));
         double k2 = -M_PI * PARAM(n) / 2;
-        cpe_gain[k] = k1 * cos(k2); /// derp
-	add_to_plot(plot_gain, k, cpe_gain[k]);
-        cpe_phase[k] = 3.14; //k1 * sin(k2); // derp
-	add_to_plot(plot_phase, k, cpe_phase[k]);
+        if (k == 0) {
+          mag[k] = 0;
+        } else {
+          mag[k] = 1; //k1 * cos(k2);
+        }
+        pha[k] = 0; //k1 * sin(k2); // derp
       }
-      end_plot(plot_f);
-      end_plot(plot_gain);
-      end_plot(plot_phase);
+      end_plot(plot_f, 1);
 
-      // First and last phase entries must be zero.
-      cpe_phase[0] = cpe_phase[(INPUT_SAMPLES / 2) - 1] = 0;
+      // For the IDFT to be real-valued, the fourier transform must be hermitian.
+      for (k = 0; k < INPUT_SAMPLES / 2; k++) {
+        mag[(INPUT_SAMPLES / 2) + k] = mag[(INPUT_SAMPLES / 2) - 1 - k];
+	pha[(INPUT_SAMPLES / 2) + k] = -pha[(INPUT_SAMPLES / 2) - 1 - k];
+      }
+
+      // Plot
+      plot_t *plot_mag = new_plot("magnitude");
+      plot_t *plot_pha = new_plot("phase");
+      for (k = 0; k < INPUT_SAMPLES; k++) {
+	add_to_plot(plot_mag, k, mag[k]);
+	add_to_plot(plot_pha, k, pha[k]);
+      }
+      end_plot(plot_mag, 1);
+      end_plot(plot_pha, 1);
 
       // Apply inverse DFT to get the impulse response.
       cm_analog_alloc(IMPULSE, sizeof(cpe_impulse[0]) * INPUT_SAMPLES);
       cpe_impulse = cm_analog_get_ptr(IMPULSE, 0);
+      double *cpe_impulse_imag = malloc(sizeof(cpe_impulse[0]) * INPUT_SAMPLES);
       plot_t *plot_impulse = new_plot("impulse");
-      int t;
-      for (t = 0; t < INPUT_SAMPLES; t++) {
-        cpe_impulse[t] = 0;
-        for (k = 0; k < INPUT_SAMPLES; k++) {
-          double v = t * (FREQ_FOR_SAMPLE(k) * M_PI / 180.0);
-          cpe_impulse[t] += (cpe_gain[k] * cos(v)) - (cpe_phase[k] * sin(v));
-	  printf(".. %f\n", (cpe_gain[k] * sin(v)) + (cpe_phase[k] * cos(v)));
+      int i, j;
+      for (i = 0; i < INPUT_SAMPLES; i++) {
+
+        cpe_impulse[i] = 0;
+        cpe_impulse_imag[i] = 0;
+        for (j = 0; j < INPUT_SAMPLES; j++) {
+          double v = i * j * 2 * M_PI / (double)INPUT_SAMPLES;
+	  double c = cos(v), s = sin(v);
+          cpe_impulse[i] += (mag[j] * c) - (pha[j] * s);
+          cpe_impulse_imag[i] += (mag[j] * s) + (pha[j] * c);
         }
-	cpe_impulse[t] /= INPUT_SAMPLES;
-        add_to_plot(plot_impulse, t, cpe_impulse[t]);
+	cpe_impulse[i] /= INPUT_SAMPLES;
+        cpe_impulse_imag[i] /= INPUT_SAMPLES;
+
+        // Sanity-check imaginary values.
+        if (fabs(cpe_impulse_imag[i]) > 0.01) {
+          printf("imag(idft[%i]) = %f\n", i, cpe_impulse_imag[i]);
+          //exit(1);
+        }
+
+        add_to_plot(plot_impulse, i, cpe_impulse[i]);
       }
-      free(cpe_gain);
-      free(cpe_phase);
-      end_plot(plot_impulse);
+      free(cpe_impulse_imag);
+      free(mag);
+      free(pha);
+      end_plot(plot_impulse, 1);
 
       // Pad out input samples with 0.
       cm_analog_alloc(INP, sizeof(input[0]) * INPUT_SAMPLES);

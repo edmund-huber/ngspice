@@ -6,6 +6,6 @@ r1 1 2 1e4
  * c1 2 0 1e-2
 a1 2 0 a_double_layer
 .model a_double_layer double_layer (q0 = 1e-4 n = 0)
-.tran 0.1ms 1s
+.tran 1ms 1s
  * .ac dec 100 10 1e8
 .end
